@@ -13,6 +13,7 @@ let stats = {
 
 const scannedInSession = new Set();
 let isProcessing = false;
+let scanMode = 'camera'; // 'camera' or 'upload'
 
 function startScanner() {
   config.apiUrl = document.getElementById('apiUrl').value.trim();
@@ -38,8 +39,70 @@ function startScanner() {
   document.getElementById('config-section').style.display = 'none';
   document.getElementById('scanner-section').style.display = 'block';
   
-  // Initialize QR scanner
+  // Initialize camera scanner by default
   initializeScanner();
+}
+
+function switchToCamera() {
+  scanMode = 'camera';
+  document.getElementById('camera-mode').style.display = 'block';
+  document.getElementById('upload-mode').style.display = 'none';
+  document.getElementById('cameraBtn').style.background = '#28a745';
+  document.getElementById('uploadBtn').style.background = '#6c757d';
+  
+  if (!html5QrCode || !html5QrCode.isScanning) {
+    initializeScanner();
+  }
+}
+
+function switchToUpload() {
+  scanMode = 'upload';
+  document.getElementById('camera-mode').style.display = 'none';
+  document.getElementById('upload-mode').style.display = 'block';
+  document.getElementById('cameraBtn').style.background = '#6c757d';
+  document.getElementById('uploadBtn').style.background = '#28a745';
+  
+  // Stop camera if running
+  if (html5QrCode && html5QrCode.isScanning) {
+    html5QrCode.stop().catch(err => console.log('Stop error:', err));
+  }
+}
+
+async function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // Show preview
+  const previewDiv = document.getElementById('upload-preview');
+  const previewImg = document.getElementById('preview-image');
+  previewDiv.style.display = 'block';
+  previewImg.src = URL.createObjectURL(file);
+  
+  showStatus('processing', 'Processing...', 'Scanning QR code from image...');
+  
+  try {
+    if (!html5QrCode) {
+      html5QrCode = new Html5Qrcode("reader");
+    }
+    
+    const result = await html5QrCode.scanFile(file, true);
+    
+    // Process the scanned result
+    await processScannedCode(result);
+    
+    // Clear the file input for next scan
+    event.target.value = '';
+    
+  } catch (err) {
+    console.error('Error scanning image:', err);
+    showStatus('error', 'Scan Failed', 'Could not find a valid QR code in this image. Please try another image.');
+    
+    // Clear preview after 3 seconds
+    setTimeout(() => {
+      previewDiv.style.display = 'none';
+      event.target.value = '';
+    }, 3000);
+  }
 }
 
 async function initializeScanner() {
@@ -78,6 +141,21 @@ async function onScanSuccess(decodedText, decodedResult) {
     console.log('Pause error:', e);
   }
   
+  await processScannedCode(decodedText);
+  
+  setTimeout(async () => {
+    try {
+      await html5QrCode.resume();
+      isProcessing = false;
+      setTimeout(() => scannedInSession.delete(decodedText), 5000);
+    } catch (e) {
+      console.log('Resume error:', e);
+      isProcessing = false;
+    }
+  }, 3000);
+}
+
+async function processScannedCode(decodedText) {
   const employeeId = decodedText.trim();
   
   stats.total++;
@@ -105,31 +183,22 @@ async function onScanSuccess(decodedText, decodedResult) {
     
     updateStats();
     
-    setTimeout(async () => {
-      try {
-        await html5QrCode.resume();
-        isProcessing = false;
-        setTimeout(() => scannedInSession.delete(employeeId), 5000);
-      } catch (e) {
-        console.log('Resume error:', e);
-        isProcessing = false;
-      }
-    }, 3000);
-    
   } catch (error) {
     console.error('Error marking attendance:', error);
     showStatus('error', 'Error', error.message);
     
-    setTimeout(async () => {
-      try {
-        await html5QrCode.resume();
-        isProcessing = false;
-        scannedInSession.delete(employeeId);
-      } catch (e) {
-        console.log('Resume error:', e);
-        isProcessing = false;
-      }
-    }, 3000);
+    if (scanMode === 'camera') {
+      setTimeout(async () => {
+        try {
+          await html5QrCode.resume();
+          isProcessing = false;
+          scannedInSession.delete(employeeId);
+        } catch (e) {
+          console.log('Resume error:', e);
+          isProcessing = false;
+        }
+      }, 3000);
+    }
   }
 }
 

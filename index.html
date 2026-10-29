@@ -313,7 +313,42 @@
           </div>
         </div>
         
-        <div id="reader"></div>
+        <!-- Scan Mode Toggle -->
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <button class="btn-success" onclick="switchToCamera()" id="cameraBtn" style="flex: 1;">
+            📷 Camera Scan
+          </button>
+          <button class="btn-success" onclick="switchToUpload()" id="uploadBtn" style="flex: 1; background: #6c757d;">
+            📤 Upload Image
+          </button>
+        </div>
+        
+        <!-- Camera Scanner -->
+        <div id="camera-mode">
+          <div id="reader"></div>
+        </div>
+        
+        <!-- Upload Mode -->
+        <div id="upload-mode" style="display: none;">
+          <div style="border: 3px dashed #667eea; border-radius: 10px; padding: 40px; text-align: center; background: #f8f9fa;">
+            <div style="font-size: 48px; margin-bottom: 15px;">📷</div>
+            <h3 style="color: #667eea; margin-bottom: 10px;">Upload QR Code Image</h3>
+            <p style="color: #666; margin-bottom: 20px;">Select an image containing a QR code</p>
+            <input 
+              type="file" 
+              id="qrImageUpload" 
+              accept="image/*" 
+              style="display: none;"
+              onchange="handleImageUpload(event)"
+            >
+            <button class="btn-success" onclick="document.getElementById('qrImageUpload').click()" style="max-width: 200px;">
+              Choose Image
+            </button>
+            <div id="upload-preview" style="margin-top: 20px; display: none;">
+              <img id="preview-image" style="max-width: 100%; border-radius: 10px; border: 2px solid #667eea;">
+            </div>
+          </div>
+        </div>
         
         <div id="status" class="status"></div>
         
