@@ -207,33 +207,62 @@ function onScanFailure(error) {
 }
 
 async function markAttendance(employeeId) {
-  try {
-    const response = await fetch(config.apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        employeeId: employeeId,
-        sheetId: config.sheetId,
-        attendanceTab: config.attendanceTab
-      }),
-      redirect: 'follow'
+  return new Promise((resolve, reject) => {
+    // Create unique callback name
+    const callbackName = 'jsonpCallback_' + Date.now();
+    
+    // Build URL with parameters
+    const params = new URLSearchParams({
+      action: 'markAttendance',
+      employeeId: employeeId,
+      sheetId: config.sheetId,
+      attendanceTab: config.attendanceTab,
+      callback: callbackName
     });
     
-    const text = await response.text();
-    console.log('Response:', text);
+    const url = config.apiUrl + '?' + params.toString();
     
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      throw new Error('Invalid response from server');
-    }
+    // Create script element for JSONP
+    const script = document.createElement('script');
     
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
-  }
+    // Define callback function
+    window[callbackName] = function(data) {
+      // Clean up
+      delete window[callbackName];
+      document.body.removeChild(script);
+      
+      // Check response format
+      if (data.success !== undefined) {
+        resolve(data);
+      } else if (data.message) {
+        resolve(data);
+      } else {
+        reject(new Error('Invalid response format'));
+      }
+    };
+    
+    // Handle errors
+    script.onerror = function() {
+      delete window[callbackName];
+      document.body.removeChild(script);
+      reject(new Error('Failed to load API'));
+    };
+    
+    // Set timeout
+    setTimeout(() => {
+      if (window[callbackName]) {
+        delete window[callbackName];
+        if (script.parentNode) {
+          document.body.removeChild(script);
+        }
+        reject(new Error('Request timeout'));
+      }
+    }, 15000);
+    
+    // Load script
+    script.src = url;
+    document.body.appendChild(script);
+  });
 }
 
 function showStatus(type, title, message, employeeInfo = null) {
