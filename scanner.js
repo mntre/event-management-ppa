@@ -39,7 +39,10 @@ function startScanner() {
   document.getElementById('config-section').style.display = 'none';
   document.getElementById('scanner-section').style.display = 'block';
   
-  // Initialize camera scanner by default
+  // Show attendance log
+  document.getElementById('attendanceLog').style.display = 'block';
+  
+  // Initialize QR scanner
   initializeScanner();
 }
 
@@ -174,6 +177,13 @@ async function processScannedCode(decodedText) {
           result.data);
       } else {
         stats.success++;
+        
+        // Show success modal
+        showSuccessModal(result.data);
+        
+        // Add to attendance log
+        addToAttendanceLog(result.data);
+        
         showStatus('success', 'Attendance Marked! ✓', 
           `Successfully marked Employee ID: ${employeeId} as present`, result.data);
       }
@@ -199,6 +209,61 @@ async function processScannedCode(decodedText) {
         }
       }, 3000);
     }
+  }
+}
+
+function showSuccessModal(employeeInfo) {
+  const modal = document.getElementById('successModal');
+  const nameEl = document.getElementById('modalEmployeeName');
+  const detailsEl = document.getElementById('modalDetails');
+  
+  nameEl.textContent = `${employeeInfo.firstName} ${employeeInfo.lastName}`;
+  
+  detailsEl.innerHTML = `
+    <div class="modal-detail-row">
+      <span class="modal-detail-label">Employee ID:</span>
+      <span class="modal-detail-value">${employeeInfo.employeeId}</span>
+    </div>
+    <div class="modal-detail-row">
+      <span class="modal-detail-label">Department:</span>
+      <span class="modal-detail-value">${employeeInfo.department}</span>
+    </div>
+    <div class="modal-detail-row">
+      <span class="modal-detail-label">Time:</span>
+      <span class="modal-detail-value">${employeeInfo.timestamp}</span>
+    </div>
+  `;
+  
+  modal.classList.add('show');
+  
+  // Auto-close after 3 seconds
+  setTimeout(() => {
+    closeSuccessModal();
+  }, 3000);
+}
+
+function closeSuccessModal() {
+  const modal = document.getElementById('successModal');
+  modal.classList.remove('show');
+}
+
+function addToAttendanceLog(employeeInfo) {
+  const logContent = document.getElementById('logContent');
+  
+  const logItem = document.createElement('div');
+  logItem.className = 'log-item';
+  logItem.innerHTML = `
+    <div class="log-name">${employeeInfo.firstName} ${employeeInfo.lastName}</div>
+    <div class="log-id">ID: ${employeeInfo.employeeId}</div>
+    <div class="log-time">${new Date().toLocaleTimeString()}</div>
+  `;
+  
+  // Add to top of log
+  logContent.insertBefore(logItem, logContent.firstChild);
+  
+  // Keep only last 10 entries
+  while (logContent.children.length > 10) {
+    logContent.removeChild(logContent.lastChild);
   }
 }
 
